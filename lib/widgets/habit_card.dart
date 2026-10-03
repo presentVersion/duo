@@ -1,93 +1,225 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:habit_tracker/models/habit.dart';
+import 'package:provider/provider.dart';
+import '../models/habit.dart';
+import '../habit_provider.dart';
+import '../theme/app_colors.dart';
+import 'tactile_card.dart';
+import 'svg_asset.dart';
+import 'week_streak_modal.dart';
 
 class HabitCard extends StatelessWidget {
   final Habit habit;
-  final VoidCallback onCompleted;
-  final VoidCallback onSkipped; // New callback for skipping
 
   const HabitCard({
     super.key,
     required this.habit,
-    required this.onCompleted,
-    required this.onSkipped,
   });
+
+  String _formatDays(Set<int> days) {
+    if (days.length == 7) return 'Everyday';
+    final dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final sorted = days.toList()..sort();
+    return sorted.map((d) => dayLetters[d - 1]).join(' • ');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDarkMode ? const Color(0xFF2C2C2C) : Colors.white;
-    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final provider = Provider.of<HabitProvider>(context, listen: false);
+    final now = DateTime.now();
+    final isCompleted = habit.isCompletedOn(now);
+    final isRest = habit.isRestOn(now);
+    final isFrozen = habit.isFrozenOn(now);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border(
-          top: BorderSide(color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5), width: 2),
-          left: BorderSide(color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5), width: 2),
-          right: BorderSide(color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5), width: 2),
-          bottom: BorderSide(color: isDarkMode ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5), width: 4),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onCompleted,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+    return TactileCard(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      borderColor: isCompleted
+          ? AppColors.owlGreen
+          : (isRest ? const Color(0xFFBA68C8) : AppColors.swan),
+      shadowColor: isCompleted
+          ? AppColors.owlGreenDeep
+          : const Color(0xFFD6D6D6),
+      child: Row(
+        children: [
+          // 1. Habit Icon in Colorful Container
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Color(habit.colorHex).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Color(habit.colorHex).withOpacity(0.4),
+                width: 2,
+              ),
+            ),
+            padding: const EdgeInsets.all(10),
+            child: SvgAsset(
+              assetName: '${habit.iconName}.svg',
+              fit: BoxFit.contain,
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          // 2. Habit Title & Streak Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                SvgPicture.asset('assets/images/Weights.svg', height: 40),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(habit.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'DINRoundPro', color: textColor)),
-                      Row(
+                Text(
+                  habit.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'DINRoundPro',
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: isCompleted ? AppColors.owlGreenDeep : AppColors.eelBlack,
+                    decoration: isCompleted ? TextDecoration.none : null,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    // Individual Habit Streak Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFCC80), width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          SvgPicture.asset('assets/images/streak.svg', height: 16),
+                          const SvgAsset(
+                            assetName: 'streak.svg',
+                            width: 14,
+                            height: 14,
+                          ),
                           const SizedBox(width: 4),
-                          Text('${habit.streakCount}', style: TextStyle(fontSize: 14, fontFamily: 'DINRoundPro', color: Colors.grey)),
+                          Text(
+                            '${habit.currentStreak} d',
+                            style: const TextStyle(
+                              fontFamily: 'DINRoundPro',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.streakOrange,
+                            ),
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                GestureDetector(
-                  onTap: onCompleted,
-                  child: SvgPicture.asset(
-                    habit.isCompletedOn(DateTime.now())
-                        ? 'assets/images/checked.svg'
-                        : 'assets/images/unchecked.svg',
-                    height: 40,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Dropdown menu for skipping
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'skip') {
-                      onSkipped();
-                    }
-                  },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: 'skip',
-                      child: Text('Skip for today'),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Days indicator
+                    Flexible(
+                      child: Text(
+                        _formatDays(habit.scheduledWeekdays),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'DINRoundPro',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.wolf,
+                        ),
+                      ),
                     ),
                   ],
-                  icon: Icon(Icons.more_vert, color: textColor),
                 ),
               ],
             ),
           ),
-        ),
+
+          const SizedBox(width: 8),
+
+          // 3. Rest Day Action Button
+          GestureDetector(
+            onTap: () {
+              provider.markHabitRest(habit.id, now);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isRest ? const Color(0xFFF3E5F5) : AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isRest ? const Color(0xFFBA68C8) : AppColors.swan,
+                  width: 2,
+                ),
+              ),
+              child: Tooltip(
+                message: isRest ? 'Rest Day Active' : 'Mark as Rest Day',
+                child: SvgAsset(
+                  assetName: 'restfortodaysworkout.svg',
+                  width: 22,
+                  height: 22,
+                  color: isRest ? const Color(0xFF8E24AA) : AppColors.wolf,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // 4. Main Checkmark Completion Button
+          GestureDetector(
+            onTap: () async {
+              final wasChecked = await provider.toggleHabitCompletion(habit.id, now);
+              if (wasChecked && context.mounted) {
+                // Show dopamine boost week-view modal
+                WeekStreakModal.show(context, habit);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: isCompleted
+                    ? AppColors.owlGreen
+                    : (isFrozen ? const Color(0xFFE1F5FE) : AppColors.snow),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isCompleted
+                      ? AppColors.owlGreenDeep
+                      : (isFrozen ? AppColors.eelBlue : AppColors.swan),
+                  width: 2.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isCompleted
+                        ? AppColors.owlGreenDeep
+                        : const Color(0xFFD6D6D6),
+                    offset: const Offset(0, 3),
+                    blurRadius: 0,
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: isCompleted
+                  ? const SvgAsset(
+                      assetName: 'checked.svg',
+                      width: 24,
+                      height: 24,
+                    )
+                  : (isFrozen
+                      ? const SvgAsset(
+                          assetName: 'freezed.svg',
+                          width: 22,
+                          height: 22,
+                        )
+                      : const SvgAsset(
+                          assetName: 'unchecked.svg',
+                          width: 20,
+                          height: 20,
+                        )),
+            ),
+          ),
+        ],
       ),
     );
   }

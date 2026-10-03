@@ -39,6 +39,7 @@ flutter:
     - assets/images/
     - assets/videos/
     - assets/fonts/
+    - assets/widget_backgrounds/
 
   fonts:
     - family: DINRoundPro
